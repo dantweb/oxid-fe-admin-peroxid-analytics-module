@@ -1,0 +1,129 @@
+name: CI
+
+on: [push, pull_request]
+
+permissions:
+  contents: read
+
+env:
+  PACKAGE_NAME: 'dantweb/oxid-fe-admin-peroxid-analytics-module'
+  PHP_VERSION: '8.2'
+  MYSQL_VERSION: '8.0'
+
+jobs:
+  static:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          persist-credentials: false
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: ${{ env.PHP_VERSION }}
+          tools: composer:v2
+      - name: Install the static tools (they need no shop)
+        run: composer install -d tests/tools --no-interaction --no-progress
+      - run: composer phpcs
+      - run: composer phpmd
+      - run: composer audit -d tests/tools --abandoned=report
+
+  shop:
+    runs-on: ubuntu-latest
+    env:
+      # graphql-admin (dantweb/graphql-admin) and graphql-admin-api are private: with read-only deploy keys in these
+      # secrets they are installed next to this module and the unit + PHPStan + integration suites run; without them
+      # the job stops after the static gate with a notice (this module cannot be activated without graphql-admin).
+      HAS_ADMIN: ${{ secrets.GRAPHQL_ADMIN_DEPLOY_KEY != '' && secrets.GRAPHQL_ADMIN_API_DEPLOY_KEY != '' }}
+    steps:
+      - name: No deploy keys for the admin modules
+        if: env.HAS_ADMIN != 'true'
+        run: >
+          echo "::notice::GRAPHQL_ADMIN_DEPLOY_KEY / GRAPHQL_ADMIN_API_DEPLOY_KEY are not set: the shop job (PHPStan, unit
+          and integration tests against a fresh SDK shop) is skipped; run it locally inside the SDK (README, Quality gate)"
+      - name: Clone the docker SDK
+        if: env.HAS_ADMIN == 'true'
+        uses: actions/checkout@v5
+        with:
+          repository: OXID-eSales/docker-eshop-sdk
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Clone the shop
+        if: env.HAS_ADMIN == 'true'
+        uses: actions/checkout@v5
+        with:
+          repository: OXID-eSales/oxideshop_ce
+          ref: b-7.4.x
+          path: source
+          persist-credentials: false
+      - name: Prepare containers and shop configuration
+        if: env.HAS_ADMIN == 'true'
+        run: |
+          make setup
+          make addbasicservices
+          perl -pi -e 's#PHP_VERSION=.*#PHP_VERSION=${{ env.PHP_VERSION }}#g;' -e "s#MYSQL_VERSION=.*#MYSQL_VERSION=${{ env.MYSQL_VERSION }}#g;" .env
+          perl -pi -e 's#/var/www/#/var/www/source/#g;' containers/httpd/project.conf
+          cp source/source/config.inc.php.dist source/source/config.inc.php
+          sed -i "1s+^+SetEnvIf Authorization \"\(.*\)\" HTTP_AUTHORIZATION=\$1\n\n+" source/source/.htaccess
+          sed -i -e 's/<dbHost>/mysql/' -e 's/<dbUser>/root/' -e 's/<dbName>/example/' -e 's/<dbPwd>/root/' \
+                 -e 's/<dbPort>/3306/' -e 's/<sShopURL>/https:\/\/oxideshop.local\//' \
+                 -e 's/<sShopDir>/\/var\/www\/source\//' -e 's/<sCompileDir>/\/var\/www\/source\/tmp\//' \
+              source/source/config.inc.php
+          make up
+          sleep 2
+      - name: Check out this module and the admin modules
+        if: env.HAS_ADMIN == 'true'
+        uses: actions/checkout@v5
+        with:
+          path: source/test-module
+          persist-credentials: false
+      - if: env.HAS_ADMIN == 'true'
+        uses: actions/checkout@v5
+        with:
+          repository: dantweb/graphql-admin
+          ssh-key: ${{ secrets.GRAPHQL_ADMIN_DEPLOY_KEY }}
+          path: source/graphql-admin
+          persist-credentials: false
+      - if: env.HAS_ADMIN == 'true'
+        uses: actions/checkout@v5
+        with:
+          repository: dantweb/graphql-admin-api
+          ssh-key: ${{ secrets.GRAPHQL_ADMIN_API_DEPLOY_KEY }}
+          path: source/graphql-admin-api
+          persist-credentials: false
+      - name: Install the modules into the shop
+        if: env.HAS_ADMIN == 'true'
+        run: |
+          for m in "oxid-esales/graphql-admin:graphql-admin" "oxid-esales/graphql-admin-api:graphql-admin-api" "${{ env.PACKAGE_NAME }}:test-module"; do
+            name="${m%%:*}"; dir="${m##*:}"
+            docker compose exec -T php composer config "repositories.$name" --json "{\"type\":\"path\",\"url\":\"./$dir\",\"options\":{\"symlink\":true}}"
+            docker compose exec -T php composer require "$name:*@dev" --no-interaction --no-update
+          done
+          docker compose exec -T php composer require --dev phpstan/phpstan:^2.0.2 --no-interaction --no-update
+          docker compose exec -T php composer update --with-all-dependencies --no-interaction
+      - name: Reset the database, demo data, activate the modules
+        if: env.HAS_ADMIN == 'true'
+        run: |
+          docker compose exec -T php bin/oe-console oe:database:reset --db-host=mysql --db-port=3306 --db-name=example --db-user=root --db-password=root --force
+          docker compose exec -T php bin/oe-console oe:setup:demodata
+          docker compose exec -T php bin/oe-console oe:module:install /var/www/vendor/oxid-esales/graphql-base
+          docker compose exec -T php bin/oe-console oe:module:activate oe_graphql_base
+          docker compose exec -T php bin/oe-console oe:module:install /var/www/graphql-admin
+          docker compose exec -T php bin/oe-console oe:module:activate oe_graphql_admin
+          docker compose exec -T php bin/oe-console oe:module:install /var/www/graphql-admin-api
+          docker compose exec -T php vendor/bin/oe-eshop-db_migrate migrations:migrate oe_graphql_admin_api
+          docker compose exec -T php bin/oe-console oe:module:activate oe_graphql_admin_api
+          docker compose exec -T php bin/oe-console oe:module:install /var/www/test-module
+          docker compose exec -T php bin/oe-console oe:module:activate peroxid_analytics
+          docker compose exec -T php bin/oe-console oe:graphql:cache-clear
+      - name: PHPStan (level 8)
+        if: env.HAS_ADMIN == 'true'
+        run: docker compose exec -T -w /var/www/test-module php composer phpstan
+      - name: Unit tests
+        if: env.HAS_ADMIN == 'true'
+        run: docker compose exec -T -w /var/www/test-module php composer test-unit
+      - name: Integration tests
+        if: env.HAS_ADMIN == 'true'
+        run: docker compose exec -T -w /var/www/test-module php composer test-integration
+      - name: Stop containers
+        if: always() && env.HAS_ADMIN == 'true'
+        run: docker compose down

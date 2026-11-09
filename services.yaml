@@ -1,0 +1,37 @@
+services:
+  _defaults:
+    autowire: true
+    public: false
+
+  # Every class is a DI service whose id is its FQCN. DataTypes are GraphQL read facades built by the reader,
+  # exceptions are thrown; neither is a service.
+  Dantweb\PeroxidAnalytics\:
+    resource: 'src/*'
+    exclude:
+      - 'src/Module.php'
+      - 'src/**/{DataType,Exception}'
+      # a value object the repository builds, not a service
+      - 'src/Analytics/Infrastructure/DailyFigures.php'
+    public: true
+
+  # graphql-base collects the tagged mappers of every module: where this module's controllers and types live
+  Dantweb\PeroxidAnalytics\Shared\Service\NamespaceMapper:
+    public: true
+    tags: ['graphql_namespace_mapper']
+
+  # graphql-admin collects the tagged providers into the rights catalogue (ADMIN_ANALYTICS_VIEW)
+  Dantweb\PeroxidAnalytics\Authorization\AnalyticsRightsProvider:
+    public: true
+    tags: ['graphql_admin_rights_provider']
+
+  Dantweb\PeroxidAnalytics\Analytics\Service\AnalyticsReaderInterface:
+    alias: Dantweb\PeroxidAnalytics\Analytics\Service\AnalyticsReader
+    public: true
+
+  Dantweb\PeroxidAnalytics\Analytics\Infrastructure\AnalyticsRepositoryInterface:
+    alias: Dantweb\PeroxidAnalytics\Analytics\Infrastructure\DbalAnalyticsRepository
+    public: true
+
+  Dantweb\PeroxidAnalytics\Analytics\Infrastructure\ShopCurrencyInterface:
+    alias: Dantweb\PeroxidAnalytics\Analytics\Infrastructure\OxidShopCurrency
+    public: true

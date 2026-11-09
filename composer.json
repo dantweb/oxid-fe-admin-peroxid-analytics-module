@@ -1,0 +1,52 @@
+{
+  "name": "dantweb/oxid-fe-admin-peroxid-analytics-module",
+  "description": "OXID eShop module: the admin GraphQL analytics (orders, sales, new customers per day or ISO week) that backs the oxid-fe-admin-peroxid-analytics plugin. Built on graphql-base and the admin API of graphql-admin.",
+  "type": "oxideshop-module",
+  "keywords": ["oxid", "modules", "eShop", "GraphQL", "admin", "analytics"],
+  "homepage": "https://github.com/dantweb/oxid-fe-admin-peroxid-analytics",
+  "license": "MIT",
+  "authors": [
+    {
+      "name": "Daniil Tkachev",
+      "email": "daniil.tkachev@oxid-esales.com"
+    }
+  ],
+  "minimum-stability": "dev",
+  "prefer-stable": true,
+  "require": {
+    "php": "^8.2",
+    "ext-json": "*",
+    "doctrine/dbal": "^2.13 || ^3.0",
+    "oxid-esales/graphql-base": "^12.0",
+    "oxid-esales/graphql-admin": "*",
+    "thecodingmachine/graphqlite": "^7.0"
+  },
+  "conflict": {
+    "oxid-esales/oxideshop-ce": "<7.4"
+  },
+  "autoload": {
+    "psr-4": {
+      "Dantweb\\PeroxidAnalytics\\": "./src"
+    }
+  },
+  "autoload-dev": {
+    "psr-4": {
+      "Dantweb\\PeroxidAnalytics\\Tests\\": "./tests"
+    }
+  },
+  "scripts": {
+    "phpcs": "tests/tools/vendor/bin/phpcs --standard=tests/phpcs.xml",
+    "phpcbf": "tests/tools/vendor/bin/phpcbf --standard=tests/phpcs.xml",
+    "phpmd": "tests/tools/vendor/bin/phpmd src ansi tests/PhpMd/phpmd.xml --strict",
+    "phpstan": "/var/www/vendor/bin/phpstan analyse -c tests/PhpStan/phpstan.neon --memory-limit=1G",
+    "test-unit": "/var/www/vendor/bin/phpunit -c tests/phpunit.xml --testsuite Unit",
+    "test-integration": "/var/www/vendor/bin/phpunit -c tests/phpunit.xml --testsuite Integration",
+    "static": ["@phpcs", "@phpmd"]
+  },
+  "config": {
+    "allow-plugins": {
+      "oxid-esales/oxideshop-composer-plugin": true,
+      "oxid-esales/oxideshop-unified-namespace-generator": true
+    }
+  }
+}

@@ -1,0 +1,21 @@
+<?xml version="1.0"?>
+<ruleset name="PEROXID Analytics PHPMD rules"
+         xmlns="http://pmd.sf.net/ruleset/1.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://pmd.sf.net/ruleset/1.0.0 http://pmd.sf.net/ruleset_xml_schema.xsd"
+         xsi:noNamespaceSchemaLocation="http://pmd.sf.net/ruleset_xml_schema.xsd">
+    <description>The rules of oxid-admin-graphql: new code, no baseline, ElseExpression enforced.</description>
+    <rule ref="rulesets/cleancode.xml">
+        <!-- Registry and named constructors are the OXID / graphql-admin idiom -->
+        <exclude name="StaticAccess"/>
+    </rule>
+    <rule ref="rulesets/codesize.xml"/>
+    <rule ref="rulesets/controversial.xml"/>
+    <rule ref="rulesets/design.xml"/>
+    <rule ref="rulesets/naming.xml">
+        <!-- of() is the named constructor of graphql-admin's value objects; to() is the GraphQL field name -->
+        <exclude name="ShortMethodName"/>
+        <exclude name="ShortVariable"/>
+    </rule>
+    <rule ref="rulesets/unusedcode.xml"/>
+</ruleset>

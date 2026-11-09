@@ -1,0 +1,15 @@
+<?xml version="1.0"?>
+<ruleset name="PEROXID Analytics module">
+    <description>PSR-12 for the PEROXID analytics module</description>
+    <rule ref="PSR12"/>
+    <file>../src</file>
+    <file>../tests</file>
+    <file>../metadata.php</file>
+    <!-- never a bare */var/* pattern: under the SDK mount this module lives at /var/www/extensions/... -->
+    <exclude-pattern>*/vendor/*</exclude-pattern>
+    <exclude-pattern>*/tests/tools/*</exclude-pattern>
+    <exclude-pattern>*/.phpunit.cache/*</exclude-pattern>
+    <arg value="p"/>
+    <arg name="colors"/>
+    <arg value="s"/>
+</ruleset>

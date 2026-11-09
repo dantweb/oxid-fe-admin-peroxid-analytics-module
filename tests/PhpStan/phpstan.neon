@@ -1,0 +1,9 @@
+parameters:
+    level: 8
+    paths:
+        - ../../src
+    # Analysed inside the SDK php container, so the shop autoloader (graphql-base, graphqlite, graphql-admin, the OXID
+    # unified namespace) resolves every symbol. No baseline: new module, level 8 from the first commit.
+    bootstrapFiles:
+        - /var/www/source/oxfunctions.php
+    reportUnmatchedIgnoredErrors: true
