@@ -1,0 +1,28 @@
+# Read capabilities of this module for the OXID admin assistant (oe_admin_assistant). Ignored where the assistant is
+# not installed; the assistant does not offer them while this module is inactive. Format:
+# extensions/admin-assistant/docs/api/capabilities.md §6. Tied to the code by tests/Unit/Assistant/CapabilityManifestTest.
+capabilities:
+  analytics.order_counts:
+    description: "Number of orders the shop got in a date range (shop timezone): total, paid, shipped, cancelled."
+    right: ADMIN_ANALYTICS_VIEW
+    module: peroxid_analytics
+    input:
+      from: { type: date, required: true, description: "First day (YYYY-MM-DD)" }
+      to:   { type: date, required: true, description: "Last day (YYYY-MM-DD), at most 366 days after from" }
+    source: { service: 'Dantweb\PeroxidAnalytics\Analytics\Service\AnalyticsReaderInterface', method: orderCounts }
+    result:
+      summary: "{{ total }} orders from {{ from }} to {{ to }} (paid {{ paid }}, shipped {{ shipped }}, cancelled {{ cancelled }})"
+    ui: { route: analytics }
+  analytics.series:
+    description: "Orders, gross sales and new customers per day or ISO week for a date range, with totals (cancelled orders not counted)."
+    right: ADMIN_ANALYTICS_VIEW
+    module: peroxid_analytics
+    input:
+      from:        { type: date, required: true, description: "First day (YYYY-MM-DD)" }
+      to:          { type: date, required: true, description: "Last day (YYYY-MM-DD), at most 366 days after from" }
+      granularity: { type: enum, values: [DAILY, WEEKLY], required: true, description: "DAILY or WEEKLY buckets" }
+    source: { service: 'Dantweb\PeroxidAnalytics\Analytics\Service\AnalyticsReaderInterface', method: series }
+    result:
+      summary: "{{ totals.orders }} orders, {{ totals.sales }} {{ currency }} sales, {{ totals.customers }} new customers ({{ from }} – {{ to }})"
+      facts: { path: buckets, label: "{{ key }}", value: "{{ orders }} orders · {{ sales }} sales" }
+    ui: { route: analytics }

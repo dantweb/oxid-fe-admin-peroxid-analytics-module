@@ -31,6 +31,12 @@ final class AnalyticsQueriesTest extends AdminSurfaceTestCase
 
     private const VARIABLES = ['from' => '2031-03-03', 'to' => '2031-03-05', 'granularity' => 'DAILY'];
 
+    private const COUNTS = <<<'GRAPHQL'
+        query ($from: DateTime!, $to: DateTime!) {
+          adminAnalyticsOrderCounts(from: $from, to: $to) { total paid shipped cancelled }
+        }
+        GRAPHQL;
+
     public function tearDown(): void
     {
         $this->connection()->executeStatement(
@@ -95,6 +101,42 @@ final class AnalyticsQueriesTest extends AdminSurfaceTestCase
         $this->assertSame('analytics_range_invalid', $this->errorCodeOf($reversed));
     }
 
+    public function testOrderCountsCountTheRangeWithPaidShippedAndCancelled(): void
+    {
+        $this->actorWithRights(AnalyticsRightsProvider::VIEW);
+        $this->plantOrder(
+            self::ORDER_A,
+            '2031-03-03 10:00:00',
+            40.0,
+            paidAt: '2031-03-03 11:00:00',
+            sentAt: '2031-03-04 09:00:00'
+        );
+        $this->plantOrder(self::ORDER_B, '2031-03-05 23:30:00', 5.5);
+        $this->plantOrder(self::ORDER_CANCELLED, '2031-03-06 12:00:00', 999.0, cancelled: true);
+
+        $inRange = $this->query(self::COUNTS, ['from' => '2031-03-03', 'to' => '2031-03-05']);
+        $withCancelled = $this->query(self::COUNTS, ['from' => '2031-03-03', 'to' => '2031-03-06']);
+
+        $this->assertSame(
+            ['total' => 2, 'paid' => 1, 'shipped' => 1, 'cancelled' => 0],
+            $inRange['body']['data']['adminAnalyticsOrderCounts']
+        );
+        $this->assertSame(['total' => 3, 'cancelled' => 1], array_intersect_key(
+            $withCancelled['body']['data']['adminAnalyticsOrderCounts'],
+            ['total' => 0, 'cancelled' => 0]
+        ));
+    }
+
+    public function testOrderCountsWithoutTheRightAreRefused(): void
+    {
+        $this->actorWithRights(Rights::ORDER_VIEW);
+
+        $this->assertSame(
+            'permission_denied',
+            $this->errorCodeOf($this->query(self::COUNTS, ['from' => '2031-03-03', 'to' => '2031-03-05']))
+        );
+    }
+
     /**
      * @return array<string, string|int|float>
      */
@@ -116,12 +158,19 @@ final class AnalyticsQueriesTest extends AdminSurfaceTestCase
         ];
     }
 
-    private function plantOrder(string $id, string $date, float $total, bool $cancelled = false): void
-    {
+    private function plantOrder(
+        string $id,
+        string $date,
+        float $total,
+        bool $cancelled = false,
+        string $paidAt = '0000-00-00 00:00:00',
+        string $sentAt = '0000-00-00 00:00:00'
+    ): void {
         $this->connection()->executeStatement(
             'INSERT INTO oxorder (OXID, OXSHOPID, OXUSERID, OXORDERDATE, OXORDERNR, OXTOTALORDERSUM, OXTOTALBRUTSUM,'
-            . ' OXCURRENCY, OXCURRATE, OXSTORNO, OXPAYMENTTYPE) VALUES (?, 1, ?, ?, 0, ?, ?, ?, 1, ?, ?)',
-            [$id, 'oxdefaultadmin', $date, $total, $total, 'EUR', $cancelled ? 1 : 0, 'oxidinvoice']
+            . ' OXCURRENCY, OXCURRATE, OXSTORNO, OXPAYMENTTYPE, OXPAID, OXSENDDATE)'
+            . ' VALUES (?, 1, ?, ?, 0, ?, ?, ?, 1, ?, ?, ?, ?)',
+            [$id, 'oxdefaultadmin', $date, $total, $total, 'EUR', $cancelled ? 1 : 0, 'oxidinvoice', $paidAt, $sentAt]
         );
     }
 

@@ -76,6 +76,31 @@ curl -s -H "Authorization: Bearer $ADMIN_TOKEN" -H 'Content-Type: application/js
 (The first weekly bucket is the Monday before `from`: the week that contains 1 October 2026 starts on 28 September; only
 the days from `from` on are counted in it.)
 
+## `adminAnalyticsOrderCounts(from, to)`
+
+How many orders the shop got between `from` and `to` (whole days, both included; at most 366 days): `total` (cancelled
+orders included), `paid`, `shipped`, `cancelled`. One counting query over `oxorder` of the shop of the request; no order,
+no customer data. Same right and errors as the series.
+
+```graphql
+query { adminAnalyticsOrderCounts(from: "2026-11-12", to: "2026-11-12") { total paid shipped cancelled } }
+```
+
+## Admin assistant capabilities
+
+`assistant.capabilities.yaml` declares two read capabilities for the OXID admin assistant (`oe_admin_assistant`), so
+"how many orders yesterday?" and "how did sales develop last month?" are answered with this module's numbers:
+
+| Capability | Source | Answer |
+| --- | --- | --- |
+| `analytics.order_counts` (`from`, `to`) | `AnalyticsReaderInterface::orderCounts` | "N orders from … to … (paid, shipped, cancelled)" |
+| `analytics.series` (`from`, `to`, `granularity` DAILY/WEEKLY) | `AnalyticsReaderInterface::series` | totals + one fact per bucket |
+
+Both need `ADMIN_ANALYTICS_VIEW` (checked by the assistant's policy gateway before the call). The file adds no PHP and no
+dependency: where the assistant is not installed it is ignored; while this module is inactive the assistant does not offer
+the capabilities. `tests/Unit/Assistant/CapabilityManifestTest.php` ties the file to the code (right, module id, enum
+cases, method parameters, result paths).
+
 ## Errors
 
 | `errorCode` | When |
