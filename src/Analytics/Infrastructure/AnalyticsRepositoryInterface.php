@@ -16,4 +16,7 @@ interface AnalyticsRepositoryInterface
      * @return list<DailyFigures> one entry per day that has data, in any order
      */
     public function perDay(AnalyticsRange $range): array;
+
+    /** Counts of the orders of the period (cancelled ones included): total, paid, shipped, cancelled. */
+    public function orderCounts(AnalyticsRange $range): OrderCountFigures;
 }

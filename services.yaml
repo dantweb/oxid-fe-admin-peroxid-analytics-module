@@ -12,6 +12,7 @@ services:
       - 'src/**/{DataType,Exception}'
       # a value object the repository builds, not a service
       - 'src/Analytics/Infrastructure/DailyFigures.php'
+      - 'src/Analytics/Infrastructure/OrderCountFigures.php'
     public: true
 
   # graphql-base collects the tagged mappers of every module: where this module's controllers and types live

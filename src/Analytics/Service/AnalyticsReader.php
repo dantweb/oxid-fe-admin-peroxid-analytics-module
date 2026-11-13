@@ -8,6 +8,7 @@ use DateTimeImmutable;
 use DateTimeInterface;
 use Dantweb\PeroxidAnalytics\Analytics\DataType\AdminAnalyticsBucket;
 use Dantweb\PeroxidAnalytics\Analytics\DataType\AdminAnalyticsGranularity;
+use Dantweb\PeroxidAnalytics\Analytics\DataType\AdminAnalyticsOrderCounts;
 use Dantweb\PeroxidAnalytics\Analytics\DataType\AdminAnalyticsSeries;
 use Dantweb\PeroxidAnalytics\Analytics\Infrastructure\AnalyticsRepositoryInterface;
 use Dantweb\PeroxidAnalytics\Analytics\Infrastructure\ShopCurrencyInterface;
@@ -55,6 +56,21 @@ final class AnalyticsReader implements AnalyticsReaderInterface
             $this->currency->code(),
             array_values($buckets),
             $totals
+        );
+    }
+
+    public function orderCounts(DateTimeInterface $from, DateTimeInterface $to): AdminAnalyticsOrderCounts
+    {
+        $range = AnalyticsRange::of($from, $to);
+        $counts = $this->repository->orderCounts($range);
+
+        return new AdminAnalyticsOrderCounts(
+            $range->from(),
+            $range->to(),
+            $counts->total,
+            $counts->paid,
+            $counts->shipped,
+            $counts->cancelled
         );
     }
 }

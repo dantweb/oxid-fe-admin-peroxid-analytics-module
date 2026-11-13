@@ -6,6 +6,7 @@ namespace Dantweb\PeroxidAnalytics\Analytics\Controller;
 
 use DateTimeInterface;
 use Dantweb\PeroxidAnalytics\Analytics\DataType\AdminAnalyticsGranularity;
+use Dantweb\PeroxidAnalytics\Analytics\DataType\AdminAnalyticsOrderCounts;
 use Dantweb\PeroxidAnalytics\Analytics\DataType\AdminAnalyticsSeries;
 use Dantweb\PeroxidAnalytics\Analytics\Service\AnalyticsReaderInterface;
 use Dantweb\PeroxidAnalytics\Authorization\AnalyticsRightsProvider;
@@ -35,5 +36,16 @@ final class AnalyticsQueries
         AdminAnalyticsGranularity $granularity
     ): AdminAnalyticsSeries {
         return $this->reader->series($from, $to, $granularity);
+    }
+
+    /**
+     * How many orders the shop got between `from` and `to` (whole days, both included; at most 366 days): total
+     * (cancelled ones included), paid, shipped, cancelled. Counts only: no order, no customer.
+     */
+    #[Query]
+    #[Right(AnalyticsRightsProvider::VIEW)]
+    public function adminAnalyticsOrderCounts(DateTimeInterface $from, DateTimeInterface $to): AdminAnalyticsOrderCounts
+    {
+        return $this->reader->orderCounts($from, $to);
     }
 }
