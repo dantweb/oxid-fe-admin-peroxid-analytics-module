@@ -11,11 +11,14 @@ plugin's page shows the shop's numbers instead of its demo data.
 | Module id | `peroxid_analytics` (`src/Module.php`) |
 | Composer | `dantweb/oxid-fe-admin-peroxid-analytics-module`, type `oxideshop-module` |
 | Depends on | `oxid-esales/graphql-base` ^12 (the GraphQL framework), `oxid-esales/graphql-admin` (admin session, right check, rights catalogue, `ShopScope`) |
-| Adds | query `adminAnalyticsSeries`, types `AdminAnalyticsSeries`, `AdminAnalyticsBucket`, enum `AdminAnalyticsGranularity`, right `ADMIN_ANALYTICS_VIEW` |
+| Adds | the queries `adminAnalyticsSeries`, `adminAnalyticsOrderCounts`, `adminAnalyticsTopProducts`, `adminAnalyticsTopCategories` and `adminAnalyticsTopShareSeries`, their types, the right `ADMIN_ANALYTICS_VIEW`, and read capabilities for the admin assistant |
 | Extends | nothing of the shop: no class extension, no controller, no setting, no table |
 | Licence | MIT |
 
-## The query
+**Documentation (ASD-STE100):** start at [`docs/README.md`](docs/README.md). It has the administrator guide, the developer
+guide, the GraphQL reference and the assistant integration.
+
+## The first query
 
 ```graphql
 query ($from: DateTime!, $to: DateTime!, $granularity: AdminAnalyticsGranularity!) {
