@@ -26,3 +26,31 @@ capabilities:
       summary: "{{ totals.orders }} orders, {{ totals.sales }} {{ currency }} sales, {{ totals.customers }} new customers ({{ from }} – {{ to }})"
       facts: { path: buckets, label: "{{ key }}", value: "{{ orders }} orders · {{ sales }} sales" }
     ui: { route: analytics }
+  analytics.top_products:
+    description: "Best selling products in a date range, ranked by sales (default), units sold or number of orders, with the share of each in the total and the share of the whole top list. A variant counts for its parent product; cancelled orders and items are not counted."
+    right: ADMIN_ANALYTICS_VIEW
+    module: peroxid_analytics
+    input:
+      from:    { type: date, required: true, description: "First day (YYYY-MM-DD)" }
+      to:      { type: date, required: true, description: "Last day (YYYY-MM-DD), at most 366 days after from" }
+      limit:   { type: integer, required: true, description: "How many products to list, 1 to 20 (5 is the shop admin's default)" }
+      measure: { type: enum, values: [SALES, UNITS, ORDERS], required: true, description: "SALES (gross sales amount), UNITS (units sold) or ORDERS (number of orders)" }
+    source: { service: 'Dantweb\PeroxidAnalytics\Analytics\Service\RankingReaderInterface', method: topProducts }
+    result:
+      summary: "The top products hold {{ topShare }} % of the total {{ total }} (others {{ othersShare }} %); amounts are in {{ currency }} when ranked by sales"
+      facts: { path: items, label: "{{ rank }}. {{ title }} ({{ number }})", value: "{{ value }} · {{ share }} %" }
+    ui: { route: analytics }
+  analytics.top_categories:
+    description: "Best selling categories in a date range, ranked by sales (default), units sold or number of orders, with the share of each in the total. A sale counts for the main category of its product only; sales of products without a category are the line 'No category'."
+    right: ADMIN_ANALYTICS_VIEW
+    module: peroxid_analytics
+    input:
+      from:    { type: date, required: true, description: "First day (YYYY-MM-DD)" }
+      to:      { type: date, required: true, description: "Last day (YYYY-MM-DD), at most 366 days after from" }
+      limit:   { type: integer, required: true, description: "How many categories to list, 1 to 20 (5 is the shop admin's default)" }
+      measure: { type: enum, values: [SALES, UNITS, ORDERS], required: true, description: "SALES (gross sales amount), UNITS (units sold) or ORDERS (number of orders)" }
+    source: { service: 'Dantweb\PeroxidAnalytics\Analytics\Service\RankingReaderInterface', method: topCategories }
+    result:
+      summary: "The top categories hold {{ topShare }} % of the total {{ total }} (others {{ othersShare }} %); amounts are in {{ currency }} when ranked by sales"
+      facts: { path: items, label: "{{ rank }}. {{ title }}", value: "{{ value }} · {{ share }} %" }
+    ui: { route: analytics }
