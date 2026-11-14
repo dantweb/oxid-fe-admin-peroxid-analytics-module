@@ -6,19 +6,17 @@ namespace Dantweb\PeroxidAnalytics\Analytics\Service;
 
 use DateTimeInterface;
 use Dantweb\PeroxidAnalytics\Analytics\DataType\AdminAnalyticsGranularity;
-use Dantweb\PeroxidAnalytics\Analytics\DataType\AdminAnalyticsRankItem;
 use Dantweb\PeroxidAnalytics\Analytics\DataType\AdminAnalyticsRankMeasure;
 use Dantweb\PeroxidAnalytics\Analytics\DataType\AdminAnalyticsRanking;
 use Dantweb\PeroxidAnalytics\Analytics\DataType\AdminAnalyticsShareSeries;
 use Dantweb\PeroxidAnalytics\Analytics\Exception\AnalyticsRankingException;
-use Dantweb\PeroxidAnalytics\Analytics\Infrastructure\RankedFigure;
 use Dantweb\PeroxidAnalytics\Analytics\Infrastructure\RankingRepositoryInterface;
 use Dantweb\PeroxidAnalytics\Analytics\Infrastructure\RankingSubject;
 use Dantweb\PeroxidAnalytics\Analytics\Infrastructure\ShopCurrencyInterface;
 
 /**
- * Turns the repository's top rows into a ranking: the bounds of the list, the "others" remainder, and shares with one
- * decimal that add up to 100. The sorting and the sums are the database's work.
+ * Validates the period and the bounds of the list and asks the repository; the sorting and the sums are the
+ * database's work, the ranking and the share curve are put together by the builders.
  */
 final class RankingReader implements RankingReaderInterface
 {
@@ -26,15 +24,11 @@ final class RankingReader implements RankingReaderInterface
 
     public const MAX_LIMIT = 20;
 
-    private const NO_CATEGORY = 'No category';
-
-    private const MONEY_DECIMALS = 2;
-
     public function __construct(
         private readonly RankingRepositoryInterface $repository,
         private readonly ShopCurrencyInterface $currency,
-        private readonly ShareSeriesBuilder $seriesBuilder,
-        private readonly ShareRounder $rounder
+        private readonly RankingBuilder $builder,
+        private readonly ShareSeriesBuilder $seriesBuilder
     ) {
     }
 
@@ -80,48 +74,13 @@ final class RankingReader implements RankingReaderInterface
     ): AdminAnalyticsRanking {
         $this->assertLimit($limit);
         $range = AnalyticsRange::of($from, $to);
-        $figures = $this->repository->top($subject, $range, $measure, $limit);
-        $total = round($this->repository->total($subject, $range, $measure), self::MONEY_DECIMALS);
-        $values = array_map(static fn (RankedFigure $figure): float => $figure->value, $figures);
-        $topTotal = round(array_sum($values), self::MONEY_DECIMALS);
-        $others = max(0.0, round($total - $topTotal, self::MONEY_DECIMALS));
-        $shares = $this->rounder->percentages([...$values, $others], $total);
-        $othersShare = (float) array_pop($shares);
 
-        return new AdminAnalyticsRanking(
-            $range->from(),
-            $range->to(),
+        return $this->builder->build(
             $measure,
             $this->currency->code(),
-            $total,
-            $topTotal,
-            round(array_sum($shares), 1),
-            $others,
-            $othersShare,
-            $this->items($figures, $shares)
+            $this->repository->top($subject, $range, $measure, $limit),
+            $this->repository->total($subject, $range, $measure)
         );
-    }
-
-    /**
-     * @param list<RankedFigure> $figures
-     * @param list<float> $shares
-     * @return list<AdminAnalyticsRankItem>
-     */
-    private function items(array $figures, array $shares): array
-    {
-        $items = [];
-        foreach ($figures as $index => $figure) {
-            $items[] = new AdminAnalyticsRankItem(
-                $index + 1,
-                $figure->entityId,
-                $figure->number,
-                $figure->entityId === null ? self::NO_CATEGORY : $figure->title,
-                round($figure->value, self::MONEY_DECIMALS),
-                $shares[$index]
-            );
-        }
-
-        return $items;
     }
 
     /**

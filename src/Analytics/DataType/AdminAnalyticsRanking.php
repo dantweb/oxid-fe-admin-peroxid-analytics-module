@@ -4,8 +4,6 @@ declare(strict_types=1);
 
 namespace Dantweb\PeroxidAnalytics\Analytics\DataType;
 
-use DateTimeImmutable;
-use DateTimeInterface;
 use TheCodingMachine\GraphQLite\Annotations\Field;
 use TheCodingMachine\GraphQLite\Annotations\Type;
 
@@ -20,8 +18,6 @@ final class AdminAnalyticsRanking
      * @param list<AdminAnalyticsRankItem> $items
      */
     public function __construct(
-        private readonly DateTimeImmutable $from,
-        private readonly DateTimeImmutable $to,
         private readonly AdminAnalyticsRankMeasure $measure,
         private readonly string $currency,
         private readonly float $total,
@@ -31,18 +27,6 @@ final class AdminAnalyticsRanking
         private readonly float $othersShare,
         private readonly array $items
     ) {
-    }
-
-    #[Field]
-    public function from(): DateTimeInterface
-    {
-        return $this->from;
-    }
-
-    #[Field]
-    public function to(): DateTimeInterface
-    {
-        return $this->to;
     }
 
     #[Field]

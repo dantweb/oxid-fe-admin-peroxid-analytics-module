@@ -13,6 +13,7 @@ use Dantweb\PeroxidAnalytics\Analytics\Infrastructure\RankedFigure;
 use Dantweb\PeroxidAnalytics\Analytics\Infrastructure\RankingSubject;
 use Dantweb\PeroxidAnalytics\Analytics\Infrastructure\ShareDayFigures;
 use Dantweb\PeroxidAnalytics\Analytics\Service\BucketCalendar;
+use Dantweb\PeroxidAnalytics\Analytics\Service\RankingBuilder;
 use Dantweb\PeroxidAnalytics\Analytics\Service\RankingReader;
 use Dantweb\PeroxidAnalytics\Analytics\Service\ShareSeriesBuilder;
 use Dantweb\PeroxidAnalytics\Analytics\Service\ShareRounder;
@@ -33,7 +34,12 @@ final class RankingReaderTest extends TestCase
             new RankedFigure('p2', 'A-2', 'Bar Set', 30.0),
         ], 100.0);
 
-        $ranking = $reader->topProducts($this->day(self::FROM), $this->day(self::TO), 2, AdminAnalyticsRankMeasure::SALES);
+        $ranking = $reader->topProducts(
+            $this->day(self::FROM),
+            $this->day(self::TO),
+            2,
+            AdminAnalyticsRankMeasure::SALES
+        );
 
         $this->assertSame('SALES', $ranking->measure()->value);
         $this->assertSame('CHF', $ranking->currency());
@@ -47,9 +53,17 @@ final class RankingReaderTest extends TestCase
 
     public function testTheSharesOfTheItemsAndOthersAddUpToOneHundred(): void
     {
-        $reader = $this->reader([new RankedFigure('p1', null, 'One', 1.0), new RankedFigure('p2', null, 'Two', 1.0)], 3.0);
+        $reader = $this->reader(
+            [new RankedFigure('p1', null, 'One', 1.0), new RankedFigure('p2', null, 'Two', 1.0)],
+            3.0
+        );
 
-        $ranking = $reader->topProducts($this->day(self::FROM), $this->day(self::TO), 2, AdminAnalyticsRankMeasure::UNITS);
+        $ranking = $reader->topProducts(
+            $this->day(self::FROM),
+            $this->day(self::TO),
+            2,
+            AdminAnalyticsRankMeasure::UNITS
+        );
 
         $sum = $ranking->othersShare();
         foreach ($ranking->items() as $item) {
@@ -77,9 +91,14 @@ final class RankingReaderTest extends TestCase
     public function testTheRepositoryIsAskedForTheRangeTheLimitAndTheMeasure(): void
     {
         $repository = new FakeRankingRepository([], 0.0);
-        $reader = new RankingReader($repository, new FixedCurrency(), self::seriesBuilder(), new ShareRounder());
+        $reader = new RankingReader($repository, new FixedCurrency(), self::builder(), self::seriesBuilder());
 
-        $reader->topCategories($this->day(self::FROM), $this->day(self::TO), 7, AdminAnalyticsRankMeasure::ORDERS);
+        $reader->topCategories(
+            $this->day(self::FROM),
+            $this->day(self::TO),
+            7,
+            AdminAnalyticsRankMeasure::ORDERS
+        );
 
         $this->assertSame(RankingSubject::CATEGORIES, $repository->subjectAskedFor);
         $this->assertSame(7, $repository->limitAskedFor);
@@ -91,7 +110,12 @@ final class RankingReaderTest extends TestCase
     {
         $reader = $this->reader([new RankedFigure(null, null, '', 10.0)], 10.0);
 
-        $ranking = $reader->topCategories($this->day(self::FROM), $this->day(self::TO), 5, AdminAnalyticsRankMeasure::SALES);
+        $ranking = $reader->topCategories(
+            $this->day(self::FROM),
+            $this->day(self::TO),
+            5,
+            AdminAnalyticsRankMeasure::SALES
+        );
 
         $this->assertSame([[1, null, null, 'No category', 10.0, 100.0]], array_map(self::row(...), $ranking->items()));
     }
@@ -122,8 +146,18 @@ final class RankingReaderTest extends TestCase
     {
         $reader = $this->reader([], 0.0);
 
-        $one = $reader->topProducts($this->day(self::FROM), $this->day(self::TO), 1, AdminAnalyticsRankMeasure::SALES);
-        $twenty = $reader->topProducts($this->day(self::FROM), $this->day(self::TO), 20, AdminAnalyticsRankMeasure::SALES);
+        $one = $reader->topProducts(
+            $this->day(self::FROM),
+            $this->day(self::TO),
+            1,
+            AdminAnalyticsRankMeasure::SALES
+        );
+        $twenty = $reader->topProducts(
+            $this->day(self::FROM),
+            $this->day(self::TO),
+            20,
+            AdminAnalyticsRankMeasure::SALES
+        );
 
         $this->assertSame([], $one->items());
         $this->assertSame([], $twenty->items());
@@ -148,7 +182,7 @@ final class RankingReaderTest extends TestCase
             10.0,
             [new ShareDayFigures('2026-11-02', 30.0, 40.0), new ShareDayFigures('2026-11-04', 0.0, 5.0)]
         );
-        $reader = new RankingReader($repository, new FixedCurrency(), self::seriesBuilder(), new ShareRounder());
+        $reader = new RankingReader($repository, new FixedCurrency(), self::builder(), self::seriesBuilder());
 
         $series = $reader->topShareSeries(
             $this->day(self::FROM),
@@ -166,9 +200,11 @@ final class RankingReaderTest extends TestCase
                 $series->buckets()
             )
         );
-        $this->assertSame(['total', 30.0, 45.0, 66.7], [
-            $series->totals()->key(), $series->totals()->value(), $series->totals()->total(), $series->totals()->share(),
-        ]);
+        $totals = $series->totals();
+        $this->assertSame(
+            ['total', 30.0, 45.0, 66.7],
+            [$totals->key(), $totals->value(), $totals->total(), $totals->share()]
+        );
     }
 
     public function testTheWeeklyShareSeriesFoldsDaysIntoTheMondayAndSharesTheSums(): void
@@ -178,7 +214,7 @@ final class RankingReaderTest extends TestCase
             10.0,
             [new ShareDayFigures('2026-11-02', 10.0, 40.0), new ShareDayFigures('2026-11-04', 30.0, 40.0)]
         );
-        $reader = new RankingReader($repository, new FixedCurrency(), self::seriesBuilder(), new ShareRounder());
+        $reader = new RankingReader($repository, new FixedCurrency(), self::builder(), self::seriesBuilder());
 
         $series = $reader->topShareSeries(
             $this->day(self::FROM),
@@ -200,7 +236,7 @@ final class RankingReaderTest extends TestCase
     public function testNoTopProductsMeansAShareSeriesOfZerosWithoutAskingForDays(): void
     {
         $repository = new FakeRankingRepository([], 0.0);
-        $reader = new RankingReader($repository, new FixedCurrency(), self::seriesBuilder(), new ShareRounder());
+        $reader = new RankingReader($repository, new FixedCurrency(), self::builder(), self::seriesBuilder());
 
         $series = $reader->topShareSeries(
             $this->day(self::FROM),
@@ -222,9 +258,14 @@ final class RankingReaderTest extends TestCase
         return new RankingReader(
             new FakeRankingRepository($figures, $total),
             new FixedCurrency('CHF'),
-            self::seriesBuilder(),
-            new ShareRounder()
+            self::builder(),
+            self::seriesBuilder()
         );
+    }
+
+    private static function builder(): RankingBuilder
+    {
+        return new RankingBuilder(new ShareRounder());
     }
 
     private static function seriesBuilder(): ShareSeriesBuilder
