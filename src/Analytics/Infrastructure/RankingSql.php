@@ -40,7 +40,8 @@ final class RankingSql
         $joins = $subject === RankingSubject::PRODUCTS ? $this->productJoin() : $this->categoryJoin();
 
         return 'SELECT g.entityId AS entityId, ' . $joins['number'] . ' AS number, ' . $joins['title'] . ' AS title,'
-            . ' g.value AS value FROM (' . $this->grouped($subject, $measure) . ') g ' . $joins['from']
+            . ' g.value AS value, ' . $joins['found'] . ' AS found FROM ('
+            . $this->grouped($subject, $measure) . ') g ' . $joins['from']
             . ' ORDER BY g.value DESC, g.entityId IS NULL, title, g.entityId LIMIT ' . $limit;
     }
 
@@ -116,7 +117,7 @@ final class RankingSql
     }
 
     /**
-     * @return array{from: string, number: string, title: string}
+     * @return array{from: string, number: string, title: string, found: string}
      */
     private function productJoin(): array
     {
@@ -126,11 +127,12 @@ final class RankingSql
             'from' => 'LEFT JOIN ' . $view . ' p ON p.OXID = g.entityId',
             'number' => "COALESCE(NULLIF(p.OXARTNUM, ''), g.lineNumber)",
             'title' => "COALESCE(NULLIF(p.OXTITLE, ''), g.lineTitle)",
+            'found' => 'p.OXID IS NOT NULL',
         ];
     }
 
     /**
-     * @return array{from: string, number: string, title: string}
+     * @return array{from: string, number: string, title: string, found: string}
      */
     private function categoryJoin(): array
     {
@@ -139,6 +141,7 @@ final class RankingSql
                 . ' LEFT JOIN oxcategories b ON b.OXID = g.entityId',
             'number' => 'NULL',
             'title' => "COALESCE(NULLIF(c.OXTITLE, ''), b.OXTITLE, '')",
+            'found' => '1',
         ];
     }
 

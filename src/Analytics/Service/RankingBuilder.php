@@ -62,7 +62,7 @@ final class RankingBuilder
         foreach ($figures as $index => $figure) {
             $items[] = new AdminAnalyticsRankItem(
                 $index + 1,
-                $figure->entityId,
+                $figure->exists ? $figure->entityId : null,
                 $figure->number,
                 $figure->entityId === null ? self::NO_CATEGORY : $figure->title,
                 round($figure->value, self::DECIMALS),

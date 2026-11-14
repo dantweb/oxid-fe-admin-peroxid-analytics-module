@@ -101,6 +101,7 @@ final class AssistantCapabilityTest extends TestCase
     public function testTopProductsThroughTheGatewayCarryTheProductIdAsAnEntityLink(): void
     {
         $this->plant('pxa-assist-6', '2031-05-15 10:00:00');
+        $this->plantProduct('pxa-assist-link');
         $this->plantLine('pxa-assist-6', 'pxa-assist-link', 'Linked Hat', 12.0);
 
         $facts = $this->readFacts(
@@ -111,6 +112,20 @@ final class AssistantCapabilityTest extends TestCase
         $this->assertSame('product', $facts[0]->entityType);
         $this->assertSame('pxa-assist-link', $facts[0]->entityId);
         $this->assertStringContainsString('Linked Hat', $facts[0]->label);
+    }
+
+    public function testAProductThatIsGoneHasNoEntityLink(): void
+    {
+        $this->plant('pxa-assist-8', '2031-05-17 10:00:00');
+        $this->plantLine('pxa-assist-8', 'pxa-assist-gone', 'Gone Hat', 12.0);
+
+        $facts = $this->readFacts(
+            'analytics.top_products',
+            ['from' => '2031-05-17', 'to' => '2031-05-17', 'limit' => 3, 'measure' => 'SALES']
+        );
+
+        $this->assertNull($facts[0]->entityId);
+        $this->assertStringContainsString('Gone Hat', $facts[0]->label);
     }
 
     public function testTopCategoriesThroughTheGatewayCarryNoEntityLink(): void
@@ -174,6 +189,19 @@ final class AssistantCapabilityTest extends TestCase
             'INSERT INTO oxorderarticles (OXID, OXORDERID, OXAMOUNT, OXARTID, OXARTNUM, OXTITLE, OXBRUTPRICE)'
             . ' VALUES (?, ?, 1, ?, ?, ?, ?)',
             [$orderId . $productId, $orderId, $productId, strtoupper($productId), $title, $gross]
+        );
+    }
+
+    private function plantProduct(string $id): void
+    {
+        $this->connection->executeStatement(
+            'INSERT INTO oxarticles (OXID, OXSHOPID, OXARTNUM, OXTITLE) VALUES (?, 1, ?, ?)',
+            [$id, strtoupper($id), 'Linked Hat']
+        );
+        // the shop reads products through views that join the shop map
+        $this->connection->executeStatement(
+            'INSERT INTO oxarticles2shop (OXSHOPID, OXMAPOBJECTID) SELECT 1, OXMAPID FROM oxarticles WHERE OXID = ?',
+            [$id]
         );
     }
 }

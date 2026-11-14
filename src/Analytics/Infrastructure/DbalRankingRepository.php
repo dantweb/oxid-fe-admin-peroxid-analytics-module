@@ -43,7 +43,8 @@ final class DbalRankingRepository implements RankingRepositoryInterface
                 $row['entityId'] === null ? null : (string) $row['entityId'],
                 $row['number'] === null ? null : (string) $row['number'],
                 (string) $row['title'],
-                (float) $row['value']
+                (float) $row['value'],
+                (bool) $row['found']
             ),
             $rows
         ));
