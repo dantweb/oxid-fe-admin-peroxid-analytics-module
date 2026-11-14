@@ -38,7 +38,7 @@ capabilities:
     source: { service: 'Dantweb\PeroxidAnalytics\Analytics\Service\RankingReaderInterface', method: topProducts }
     result:
       summary: "The top products hold {{ topShare }} % of the total {{ total }} (others {{ othersShare }} %); amounts are in {{ currency }} when ranked by sales"
-      facts: { path: items, label: "{{ rank }}. {{ title }} ({{ number }})", value: "{{ value }} · {{ share }} %" }
+      facts: { path: items, label: "{{ rank }}. {{ title }} ({{ number }})", value: "{{ value }} · {{ share }} %", entity: { type: product, id: "{{ entityId }}" } }
     ui: { route: analytics }
   analytics.top_categories:
     description: "Best selling categories in a date range, ranked by sales (default), units sold or number of orders, with the share of each in the total. A sale counts for the main category of its product only; sales of products without a category are the line 'No category'."

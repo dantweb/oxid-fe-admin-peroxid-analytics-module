@@ -98,6 +98,52 @@ final class AssistantCapabilityTest extends TestCase
         $this->assertStringContainsString('(2031-05-10 – 2031-05-12)', $summary);
     }
 
+    public function testTopProductsThroughTheGatewayCarryTheProductIdAsAnEntityLink(): void
+    {
+        $this->plant('pxa-assist-6', '2031-05-15 10:00:00');
+        $this->plantLine('pxa-assist-6', 'pxa-assist-link', 'Linked Hat', 12.0);
+
+        $facts = $this->readFacts(
+            'analytics.top_products',
+            ['from' => '2031-05-15', 'to' => '2031-05-15', 'limit' => 3, 'measure' => 'SALES']
+        );
+
+        $this->assertSame('product', $facts[0]->entityType);
+        $this->assertSame('pxa-assist-link', $facts[0]->entityId);
+        $this->assertStringContainsString('Linked Hat', $facts[0]->label);
+    }
+
+    public function testTopCategoriesThroughTheGatewayCarryNoEntityLink(): void
+    {
+        $this->plant('pxa-assist-7', '2031-05-16 10:00:00');
+        $this->plantLine('pxa-assist-7', 'pxa-assist-nolink', 'No Link Cap', 4.0);
+
+        $facts = $this->readFacts(
+            'analytics.top_categories',
+            ['from' => '2031-05-16', 'to' => '2031-05-16', 'limit' => 3, 'measure' => 'SALES']
+        );
+
+        $this->assertNotEmpty($facts);
+        $this->assertNull($facts[0]->entityType);
+        $this->assertNull($facts[0]->entityId);
+    }
+
+    /**
+     * @param array<string, string|int> $payload
+     * @return list<object{label: string, entityType: ?string, entityId: ?string}>
+     */
+    private function readFacts(string $capability, array $payload): array
+    {
+        $proposalClass = self::PROPOSAL;
+        $principalClass = self::PRINCIPAL;
+        $prepared = ContainerFactory::getInstance()->getContainer()->get(self::PREPARER)->prepare(
+            new $proposalClass($capability, $payload, 'x'),
+            $principalClass::admin('oxdefaultadmin', 1)
+        );
+
+        return $prepared->result?->facts ?? [];
+    }
+
     /** @param array<string, string|int> $payload */
     private function read(string $capability, array $payload): string
     {
