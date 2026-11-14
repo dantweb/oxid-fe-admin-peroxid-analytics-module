@@ -104,7 +104,7 @@ adminAnalyticsTopShareSeries(from: DateTime!, to: DateTime!, granularity: AdminA
 | Sales | `SUM(oxorderarticles.OXBRUTPRICE)`, the gross item total, in the shop's default currency (every order is stored in it; `currency` of the answer) |
 | Units | `SUM(oxorderarticles.OXAMOUNT)` |
 | Orders | `COUNT(DISTINCT OXORDERID)` per product or category. The total is the sum over the lines, so an order with two products counts for both and the shares add up to 100 |
-| Product | `COALESCE(NULLIF(oxarticles.OXPARENTID, ''), oxorderarticles.OXARTID)`: a **variant counts for its parent**. A product deleted after the sale is still a line: its id, article number and title are those stored on the order item |
+| Product | `COALESCE(NULLIF(oxarticles.OXPARENTID, ''), oxorderarticles.OXARTID)`: a **variant counts for its parent**. A product deleted after the sale is still a line: its article number and title are those stored on the order item, and its `entityId` is `null` (there is no page to link to) |
 | Category | the **main category** of the product: of the product's `oxobject2category` rows the one with the lowest `OXTIME` (ties by id), if its category still exists; the classic "default category". Sales of products without one are the line `No category` (`entityId: null`) |
 | Title | the view of the request language (`oxv_oxarticles_<shop>_<lang>`, `oxv_oxcategories_...`), the stored order item title (products) or the base title (categories) when it is empty |
 | Order | value descending, then title, then id: stable for equal values |

@@ -30,8 +30,8 @@ final class RankingReaderTest extends TestCase
     public function testTheTopProductsWithOthersAndTheShareOfTheTop(): void
     {
         $reader = $this->reader([
-            new RankedFigure('p1', 'A-1', 'Kuyichi Jeans', 50.0),
-            new RankedFigure('p2', 'A-2', 'Bar Set', 30.0),
+            RankedFigure::of('p1', 'A-1', 'Kuyichi Jeans', 50.0),
+            RankedFigure::of('p2', 'A-2', 'Bar Set', 30.0),
         ], 100.0);
 
         $ranking = $reader->topProducts(
@@ -54,7 +54,7 @@ final class RankingReaderTest extends TestCase
     public function testTheSharesOfTheItemsAndOthersAddUpToOneHundred(): void
     {
         $reader = $this->reader(
-            [new RankedFigure('p1', null, 'One', 1.0), new RankedFigure('p2', null, 'Two', 1.0)],
+            [RankedFigure::of('p1', null, 'One', 1.0), RankedFigure::of('p2', null, 'Two', 1.0)],
             3.0
         );
 
@@ -71,6 +71,36 @@ final class RankingReaderTest extends TestCase
         }
         $this->assertEqualsWithDelta(100.0, $sum, 0.0001);
         $this->assertEqualsWithDelta(100.0, $ranking->topShare() + $ranking->othersShare(), 0.0001);
+    }
+
+    public function testAProductThatNoLongerExistsKeepsItsTitleButHasNoId(): void
+    {
+        $reader = $this->reader([RankedFigure::gone('gone-1', 'G-1', 'Gone Hat', 10.0)], 10.0);
+
+        $ranking = $reader->topProducts(
+            $this->day(self::FROM),
+            $this->day(self::TO),
+            5,
+            AdminAnalyticsRankMeasure::SALES
+        );
+
+        $this->assertSame([[1, null, 'G-1', 'Gone Hat', 10.0, 100.0]], array_map(self::row(...), $ranking->items()));
+    }
+
+    public function testTheShareSeriesStillRanksAProductThatNoLongerExists(): void
+    {
+        $repository = new FakeRankingRepository([RankedFigure::gone('gone-1', null, 'Gone', 9.0)], 10.0);
+        $reader = new RankingReader($repository, new FixedCurrency(), self::builder(), self::seriesBuilder());
+
+        $reader->topShareSeries(
+            $this->day(self::FROM),
+            $this->day(self::TO),
+            AdminAnalyticsGranularity::DAILY,
+            3,
+            AdminAnalyticsRankMeasure::SALES
+        );
+
+        $this->assertSame(['gone-1'], $repository->productIdsAskedFor);
     }
 
     public function testAPeriodWithoutSalesIsAnEmptyRanking(): void
@@ -108,7 +138,7 @@ final class RankingReaderTest extends TestCase
 
     public function testAnItemWithoutACategoryIsNamedNoCategoryAndHasNoId(): void
     {
-        $reader = $this->reader([new RankedFigure(null, null, '', 10.0)], 10.0);
+        $reader = $this->reader([RankedFigure::of(null, null, '', 10.0)], 10.0);
 
         $ranking = $reader->topCategories(
             $this->day(self::FROM),
@@ -178,7 +208,7 @@ final class RankingReaderTest extends TestCase
     public function testTheShareSeriesHasEveryDayEmptyOnesAsZero(): void
     {
         $repository = new FakeRankingRepository(
-            [new RankedFigure('p1', null, 'One', 9.0)],
+            [RankedFigure::of('p1', null, 'One', 9.0)],
             10.0,
             [new ShareDayFigures('2026-11-02', 30.0, 40.0), new ShareDayFigures('2026-11-04', 0.0, 5.0)]
         );
@@ -210,7 +240,7 @@ final class RankingReaderTest extends TestCase
     public function testTheWeeklyShareSeriesFoldsDaysIntoTheMondayAndSharesTheSums(): void
     {
         $repository = new FakeRankingRepository(
-            [new RankedFigure('p1', null, 'One', 9.0)],
+            [RankedFigure::of('p1', null, 'One', 9.0)],
             10.0,
             [new ShareDayFigures('2026-11-02', 10.0, 40.0), new ShareDayFigures('2026-11-04', 30.0, 40.0)]
         );

@@ -128,6 +128,29 @@ final class CapabilityManifestTest extends TestCase
         }
     }
 
+    public function testTopProductsFactsLinkEachProductThroughItsEntityId(): void
+    {
+        $facts = $this->capabilities['analytics.top_products']['result']['facts'];
+
+        $this->assertSame(['type' => 'product', 'id' => '{{ entityId }}'], $facts['entity']);
+        $this->assertTrue(method_exists(AdminAnalyticsRankItem::class, 'entityId'));
+        $returnType = (new ReflectionMethod(AdminAnalyticsRankItem::class, 'entityId'))->getReturnType();
+        $this->assertSame('?string', (string) $returnType);
+    }
+
+    public function testTopCategoriesFactsHaveNoEntityBecauseTheAssistantKnowsNoCategoryEntity(): void
+    {
+        $this->assertArrayNotHasKey('entity', $this->capabilities['analytics.top_categories']['result']['facts']);
+    }
+
+    public function testNoOtherCapabilityDeclaresAnEntity(): void
+    {
+        foreach (['analytics.order_counts', 'analytics.series', 'analytics.top_categories'] as $name) {
+            $result = json_encode($this->capabilities[$name]['result'], JSON_THROW_ON_ERROR);
+            $this->assertStringNotContainsString('entity', $result, $name);
+        }
+    }
+
     /** @param class-string $class */
     private function assertPaths(string $template, string $class): void
     {

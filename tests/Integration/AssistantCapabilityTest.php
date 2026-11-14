@@ -98,6 +98,67 @@ final class AssistantCapabilityTest extends TestCase
         $this->assertStringContainsString('(2031-05-10 – 2031-05-12)', $summary);
     }
 
+    public function testTopProductsThroughTheGatewayCarryTheProductIdAsAnEntityLink(): void
+    {
+        $this->plant('pxa-assist-6', '2031-05-15 10:00:00');
+        $this->plantProduct('pxa-assist-link');
+        $this->plantLine('pxa-assist-6', 'pxa-assist-link', 'Linked Hat', 12.0);
+
+        $facts = $this->readFacts(
+            'analytics.top_products',
+            ['from' => '2031-05-15', 'to' => '2031-05-15', 'limit' => 3, 'measure' => 'SALES']
+        );
+
+        $this->assertSame('product', $facts[0]->entityType);
+        $this->assertSame('pxa-assist-link', $facts[0]->entityId);
+        $this->assertStringContainsString('Linked Hat', $facts[0]->label);
+    }
+
+    public function testAProductThatIsGoneHasNoEntityLink(): void
+    {
+        $this->plant('pxa-assist-8', '2031-05-17 10:00:00');
+        $this->plantLine('pxa-assist-8', 'pxa-assist-gone', 'Gone Hat', 12.0);
+
+        $facts = $this->readFacts(
+            'analytics.top_products',
+            ['from' => '2031-05-17', 'to' => '2031-05-17', 'limit' => 3, 'measure' => 'SALES']
+        );
+
+        $this->assertNull($facts[0]->entityId);
+        $this->assertStringContainsString('Gone Hat', $facts[0]->label);
+    }
+
+    public function testTopCategoriesThroughTheGatewayCarryNoEntityLink(): void
+    {
+        $this->plant('pxa-assist-7', '2031-05-16 10:00:00');
+        $this->plantLine('pxa-assist-7', 'pxa-assist-nolink', 'No Link Cap', 4.0);
+
+        $facts = $this->readFacts(
+            'analytics.top_categories',
+            ['from' => '2031-05-16', 'to' => '2031-05-16', 'limit' => 3, 'measure' => 'SALES']
+        );
+
+        $this->assertNotEmpty($facts);
+        $this->assertNull($facts[0]->entityType);
+        $this->assertNull($facts[0]->entityId);
+    }
+
+    /**
+     * @param array<string, string|int> $payload
+     * @return list<object{label: string, entityType: ?string, entityId: ?string}>
+     */
+    private function readFacts(string $capability, array $payload): array
+    {
+        $proposalClass = self::PROPOSAL;
+        $principalClass = self::PRINCIPAL;
+        $prepared = ContainerFactory::getInstance()->getContainer()->get(self::PREPARER)->prepare(
+            new $proposalClass($capability, $payload, 'x'),
+            $principalClass::admin('oxdefaultadmin', 1)
+        );
+
+        return $prepared->result?->facts ?? [];
+    }
+
     /** @param array<string, string|int> $payload */
     private function read(string $capability, array $payload): string
     {
@@ -128,6 +189,19 @@ final class AssistantCapabilityTest extends TestCase
             'INSERT INTO oxorderarticles (OXID, OXORDERID, OXAMOUNT, OXARTID, OXARTNUM, OXTITLE, OXBRUTPRICE)'
             . ' VALUES (?, ?, 1, ?, ?, ?, ?)',
             [$orderId . $productId, $orderId, $productId, strtoupper($productId), $title, $gross]
+        );
+    }
+
+    private function plantProduct(string $id): void
+    {
+        $this->connection->executeStatement(
+            'INSERT INTO oxarticles (OXID, OXSHOPID, OXARTNUM, OXTITLE) VALUES (?, 1, ?, ?)',
+            [$id, strtoupper($id), 'Linked Hat']
+        );
+        // the shop reads products through views that join the shop map
+        $this->connection->executeStatement(
+            'INSERT INTO oxarticles2shop (OXSHOPID, OXMAPOBJECTID) SELECT 1, OXMAPID FROM oxarticles WHERE OXID = ?',
+            [$id]
         );
     }
 }

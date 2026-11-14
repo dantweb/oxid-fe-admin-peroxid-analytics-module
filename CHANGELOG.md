@@ -2,6 +2,7 @@
 
 ## Unreleased
 
+- `analytics.top_products`: each fact names its product (`entity: { type: product, id: "{{ entityId }}" }`), so the assistant's answer links to the product pages. The line of a deleted product has `entityId: null` (its title stays), so it has no link. `analytics.top_categories` has no entity: the assistant has no category entity.
 - `adminAnalyticsTopProducts`, `adminAnalyticsTopCategories` and `adminAnalyticsTopShareSeries`: rankings by sales, units or
   orders with others and shares that add up to 100 (variants summed into the parent product, main category only,
   cancelled orders and items left out); `analytics.top_products` and `analytics.top_categories` for the admin assistant.

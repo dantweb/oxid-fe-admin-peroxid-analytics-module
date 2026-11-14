@@ -25,7 +25,7 @@ final class TopProductsReaderTest extends RankingFixtureTestCase
                 [1, 'pxr-alpha', 'ALPHA-0', 'Alpha', 30.0, 45.5],
                 [2, 'pxr-beta', 'BETA-0', 'Beta', 30.0, 45.4],
                 [3, 'pxr-gamma', 'GAMMA-0', 'Gamma', 5.0, 7.6],
-                [4, 'pxr-gone', 'GONE-1', 'Gone', 1.0, 1.5],
+                [4, null, 'GONE-1', 'Gone', 1.0, 1.5],
             ],
             array_map(self::row(...), $ranking->items())
         );
@@ -38,7 +38,7 @@ final class TopProductsReaderTest extends RankingFixtureTestCase
         $ranking = $this->top(10, AdminAnalyticsRankMeasure::UNITS);
 
         $this->assertSame(
-            [['pxr-gamma', 5.0], ['pxr-alpha', 3.0], ['pxr-beta', 1.0], ['pxr-gone', 1.0]],
+            [['pxr-gamma', 5.0], ['pxr-alpha', 3.0], ['pxr-beta', 1.0], [null, 1.0]],
             $this->pairs($ranking)
         );
         $this->assertSame(10.0, $ranking->total());
@@ -49,7 +49,7 @@ final class TopProductsReaderTest extends RankingFixtureTestCase
         $ranking = $this->top(10, AdminAnalyticsRankMeasure::ORDERS);
 
         $this->assertSame(
-            [['pxr-alpha', 2.0], ['pxr-beta', 1.0], ['pxr-gamma', 1.0], ['pxr-gone', 1.0]],
+            [['pxr-alpha', 2.0], ['pxr-beta', 1.0], ['pxr-gamma', 1.0], [null, 1.0]],
             $this->pairs($ranking)
         );
         $this->assertSame(5.0, $ranking->total());
@@ -65,6 +65,20 @@ final class TopProductsReaderTest extends RankingFixtureTestCase
         ));
         $this->assertSame([66.0, 60.0, 6.0], [$ranking->total(), $ranking->topTotal(), $ranking->others()]);
         $this->assertSame([90.9, 9.1], [$ranking->topShare(), $ranking->othersShare()]);
+    }
+
+    public function testAProductDeletedAfterTheSaleHasNoIdSoNoClientLinksToAPageThatIsGone(): void
+    {
+        $ranking = $this->top(10, AdminAnalyticsRankMeasure::SALES);
+
+        $gone = $ranking->items()[3];
+        $this->assertNull($gone->entityId());
+        $this->assertSame('Gone', $gone->title(), 'it is not the line "No category"');
+        $this->assertSame('GONE-1', $gone->number());
+        $this->assertSame(['pxr-alpha', 'pxr-beta', 'pxr-gamma'], array_map(
+            static fn (AdminAnalyticsRankItem $item): ?string => $item->entityId(),
+            array_slice($ranking->items(), 0, 3)
+        ));
     }
 
     public function testTheTitleIsReadInTheLanguageOfTheRequestWithTheStoredTitleAsFallback(): void
