@@ -42,6 +42,8 @@ final class ModuleWiringTest extends TestCase
         foreach (
             [
                 'Dantweb\\PeroxidAnalytics\\Analytics\\Service\\AnalyticsReaderInterface',
+                'Dantweb\\PeroxidAnalytics\\Analytics\\Service\\RankingReaderInterface',
+                'Dantweb\\PeroxidAnalytics\\Analytics\\Infrastructure\\RankingRepositoryInterface',
                 'Dantweb\\PeroxidAnalytics\\Analytics\\Infrastructure\\AnalyticsRepositoryInterface',
                 'Dantweb\\PeroxidAnalytics\\Analytics\\Infrastructure\\ShopCurrencyInterface',
             ] as $interface
@@ -53,6 +55,8 @@ final class ModuleWiringTest extends TestCase
         $exclude = $services['Dantweb\\PeroxidAnalytics\\']['exclude'];
         $this->assertContains('src/**/{DataType,Exception}', $exclude);
         $this->assertContains('src/Analytics/Infrastructure/DailyFigures.php', $exclude);
+        $this->assertContains('src/Analytics/Infrastructure/RankedFigure.php', $exclude);
+        $this->assertContains('src/Analytics/Infrastructure/ShareDayFigures.php', $exclude);
     }
 
     public function testComposerRequiresGraphqlBaseAndTheAdminApi(): void

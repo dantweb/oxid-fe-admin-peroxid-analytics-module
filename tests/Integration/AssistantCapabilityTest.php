@@ -45,6 +45,34 @@ final class AssistantCapabilityTest extends TestCase
 
         $this->assertNotNull($registry->find('analytics.order_counts'));
         $this->assertNotNull($registry->find('analytics.series'));
+        $this->assertNotNull($registry->find('analytics.top_products'));
+        $this->assertNotNull($registry->find('analytics.top_categories'));
+    }
+
+    public function testTopProductsThroughTheAssistantGatewayStatesTheShareOfTheTop(): void
+    {
+        $this->plant('pxa-assist-4', '2031-05-13 10:00:00');
+        $this->plantLine('pxa-assist-4', 'pxa-assist-hat', 'Assist Hat', 25.0);
+
+        $summary = $this->read(
+            'analytics.top_products',
+            ['from' => '2031-05-13', 'to' => '2031-05-13', 'limit' => 5, 'measure' => 'SALES']
+        );
+
+        $this->assertStringStartsWith('The top products hold 100 % of the total 25', $summary);
+    }
+
+    public function testTopCategoriesThroughTheAssistantGatewayNamesTheCategorylessSales(): void
+    {
+        $this->plant('pxa-assist-5', '2031-05-14 10:00:00');
+        $this->plantLine('pxa-assist-5', 'pxa-assist-cap', 'Assist Cap', 8.0);
+
+        $summary = $this->read(
+            'analytics.top_categories',
+            ['from' => '2031-05-14', 'to' => '2031-05-14', 'limit' => 3, 'measure' => 'UNITS']
+        );
+
+        $this->assertStringStartsWith('The top categories hold 100 % of the total 1', $summary);
     }
 
     public function testOrderCountsThroughTheAssistantGatewaySummaryHasTotalAndSplit(): void
@@ -70,7 +98,7 @@ final class AssistantCapabilityTest extends TestCase
         $this->assertStringContainsString('(2031-05-10 – 2031-05-12)', $summary);
     }
 
-    /** @param array<string, string> $payload */
+    /** @param array<string, string|int> $payload */
     private function read(string $capability, array $payload): string
     {
         $proposalClass = self::PROPOSAL;
@@ -91,6 +119,15 @@ final class AssistantCapabilityTest extends TestCase
             . ' OXCURRENCY, OXCURRATE, OXSTORNO, OXPAYMENTTYPE, OXPAID, OXSENDDATE)'
             . ' VALUES (?, 1, ?, ?, 0, 10, 10, ?, 1, ?, ?, ?, ?)',
             [$id, 'oxdefaultadmin', $date, 'EUR', $cancelled ? 1 : 0, 'oxidinvoice', $never, $never]
+        );
+    }
+
+    private function plantLine(string $orderId, string $productId, string $title, float $gross): void
+    {
+        $this->connection->executeStatement(
+            'INSERT INTO oxorderarticles (OXID, OXORDERID, OXAMOUNT, OXARTID, OXARTNUM, OXTITLE, OXBRUTPRICE)'
+            . ' VALUES (?, ?, 1, ?, ?, ?, ?)',
+            [$orderId . $productId, $orderId, $productId, strtoupper($productId), $title, $gross]
         );
     }
 }

@@ -13,6 +13,8 @@ services:
       # a value object the repository builds, not a service
       - 'src/Analytics/Infrastructure/DailyFigures.php'
       - 'src/Analytics/Infrastructure/OrderCountFigures.php'
+      - 'src/Analytics/Infrastructure/RankedFigure.php'
+      - 'src/Analytics/Infrastructure/ShareDayFigures.php'
     public: true
 
   # graphql-base collects the tagged mappers of every module: where this module's controllers and types live
@@ -27,6 +29,14 @@ services:
 
   Dantweb\PeroxidAnalytics\Analytics\Service\AnalyticsReaderInterface:
     alias: Dantweb\PeroxidAnalytics\Analytics\Service\AnalyticsReader
+    public: true
+
+  Dantweb\PeroxidAnalytics\Analytics\Service\RankingReaderInterface:
+    alias: Dantweb\PeroxidAnalytics\Analytics\Service\RankingReader
+    public: true
+
+  Dantweb\PeroxidAnalytics\Analytics\Infrastructure\RankingRepositoryInterface:
+    alias: Dantweb\PeroxidAnalytics\Analytics\Infrastructure\DbalRankingRepository
     public: true
 
   Dantweb\PeroxidAnalytics\Analytics\Infrastructure\AnalyticsRepositoryInterface:
