@@ -32,7 +32,7 @@ final class ShareRounder
             ++$tenths[$index];
         }
 
-        return array_map(static fn (int $tenth): float => $tenth / 10, $tenths);
+        return array_values(array_map(static fn (int $tenth): float => $tenth / 10, $tenths));
     }
 
     /**

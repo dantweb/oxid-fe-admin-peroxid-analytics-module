@@ -7,7 +7,7 @@ a refusal is a GraphQL error with `extensions.errorCode`; dates are the `DateTim
 
 | Right | Operations |
 | --- | --- |
-| `ADMIN_ANALYTICS_VIEW` (domain `analytics`) | `adminAnalyticsSeries` |
+| `ADMIN_ANALYTICS_VIEW` (domain `analytics`) | `adminAnalyticsSeries`, `adminAnalyticsOrderCounts`, `adminAnalyticsTopProducts`, `adminAnalyticsTopCategories`, `adminAnalyticsTopShareSeries` |
 
 The right is added to the catalogue by `Authorization\AnalyticsRightsProvider` (tag `graphql_admin_rights_provider`).
 Description in the role editor: "Read the sales and customer analytics (aggregated numbers per day or week, no personal
@@ -86,15 +86,49 @@ no customer data. Same right and errors as the series.
 query { adminAnalyticsOrderCounts(from: "2026-11-12", to: "2026-11-12") { total paid shipped cancelled } }
 ```
 
+## Rankings: `adminAnalyticsTopProducts`, `adminAnalyticsTopCategories`, `adminAnalyticsTopShareSeries`
+
+```graphql
+adminAnalyticsTopProducts(from: DateTime!, to: DateTime!, limit: Int!, measure: AdminAnalyticsRankMeasure!): AdminAnalyticsRanking!
+adminAnalyticsTopCategories(from: DateTime!, to: DateTime!, limit: Int!, measure: AdminAnalyticsRankMeasure!): AdminAnalyticsRanking!
+adminAnalyticsTopShareSeries(from: DateTime!, to: DateTime!, granularity: AdminAnalyticsGranularity!, limit: Int!,
+                             measure: AdminAnalyticsRankMeasure!): AdminAnalyticsShareSeries!
+```
+
+`limit` is 1 to 20 (else error `analytics_ranking_invalid`); the period rules are those of the series
+(`analytics_range_invalid`). `measure` is the enum `SALES | UNITS | ORDERS`.
+
+| Rule | Implementation (`Infrastructure\RankingSql`) |
+| --- | --- |
+| Which items | `oxorderarticles` joined to `oxorder` of the shop of the request (ShopScope), `OXORDERDATE` in the period, **`oxorder.OXSTORNO = 0` and `oxorderarticles.OXSTORNO = 0`** (cancelled orders and cancelled items are left out) |
+| Sales | `SUM(oxorderarticles.OXBRUTPRICE)`, the gross item total, in the shop's default currency (every order is stored in it; `currency` of the answer) |
+| Units | `SUM(oxorderarticles.OXAMOUNT)` |
+| Orders | `COUNT(DISTINCT OXORDERID)` per product or category. The total is the sum over the lines, so an order with two products counts for both and the shares add up to 100 |
+| Product | `COALESCE(NULLIF(oxarticles.OXPARENTID, ''), oxorderarticles.OXARTID)`: a **variant counts for its parent**. A product deleted after the sale is still a line: its id, article number and title are those stored on the order item |
+| Category | the **main category** of the product: of the product's `oxobject2category` rows the one with the lowest `OXTIME` (ties by id), if its category still exists; the classic "default category". Sales of products without one are the line `No category` (`entityId: null`) |
+| Title | the view of the request language (`oxv_oxarticles_<shop>_<lang>`, `oxv_oxcategories_...`), the stored order item title (products) or the base title (categories) when it is empty |
+| Order | value descending, then title, then id: stable for equal values |
+| Others, shares | `others = total - topTotal`; every item's `share` and `othersShare` have one decimal and add up to exactly 100 (largest remainder method, `Service\ShareRounder`); `topShare` is the sum of the items' shares |
+| Limit | `GROUP BY` and `ORDER BY ... LIMIT` in the database, plus one `SUM` over the grouped lines for the total |
+
+`AdminAnalyticsRanking`: `measure`, `currency`, `total`, `topTotal`, `topShare`, `others`, `othersShare`,
+`items: [AdminAnalyticsRankItem!]!` (`rank`, `entityId`, `number`, `title`, `value`, `share`).
+
+`adminAnalyticsTopShareSeries` ranks the products of the **whole period** and returns, for every bucket of the complete
+calendar (an empty bucket is 0), what those top `limit` products hold: `AdminAnalyticsShareBucket { key value total share }`
+plus `totals` for the period. One `GROUP BY DATE(...)` query with the top ids.
+
 ## Admin assistant capabilities
 
-`assistant.capabilities.yaml` declares two read capabilities for the OXID admin assistant (`oe_admin_assistant`), so
+`assistant.capabilities.yaml` declares four read capabilities for the OXID admin assistant (`oe_admin_assistant`), so
 "how many orders yesterday?" and "how did sales develop last month?" are answered with this module's numbers:
 
 | Capability | Source | Answer |
 | --- | --- | --- |
 | `analytics.order_counts` (`from`, `to`) | `AnalyticsReaderInterface::orderCounts` | "N orders from … to … (paid, shipped, cancelled)" |
 | `analytics.series` (`from`, `to`, `granularity` DAILY/WEEKLY) | `AnalyticsReaderInterface::series` | totals + one fact per bucket |
+| `analytics.top_products` (`from`, `to`, `limit`, `measure`) | `RankingReaderInterface::topProducts` | share of the top, one fact per product |
+| `analytics.top_categories` (`from`, `to`, `limit`, `measure`) | `RankingReaderInterface::topCategories` | share of the top, one fact per category |
 
 Both need `ADMIN_ANALYTICS_VIEW` (checked by the assistant's policy gateway before the call). The file adds no PHP and no
 dependency: where the assistant is not installed it is ignored; while this module is inactive the assistant does not offer
@@ -108,6 +142,7 @@ cases, method parameters, result paths).
 | `admin_session_required` | no admin token (a storefront token is not an admin session) |
 | `permission_denied` | the session's roles do not hold `ADMIN_ANALYTICS_VIEW` |
 | `analytics_range_invalid` | `to` before `from`, or more than 366 days |
+| `analytics_ranking_invalid` | `limit` outside 1 to 20 |
 
 ## The client
 
